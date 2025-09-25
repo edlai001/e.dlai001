@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Yippie!!!</title>
+    <link rel="stylesheet" href="parisstyle.css">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            transition: background-position 0.4s cubic-bezier(.4,2,.6,1);
+            background: linear-gradient(135deg, #F8C8DC 0%, #FFB6C1 100%);
+            background-size: 200% 200%;
+            background-position: 50% 50%;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            gap: 32px;
+        }
+        .header_text {
+            font-family: 'Nunito', sans-serif;
+            font-size: 50px;
+            font-weight: bold;
+            color: white;
+            text-align: center;
+            margin: 0;
+        }
+        .gif_container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+        .gif_container img {
+            max-width: 250px;
+            width: 100%;
+            height: auto;
+            border-radius: 16px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+        }
+        .text {
+            font-family: 'Nunito', sans-serif;
+            font-size: 25px;
+            font-weight: bold;
+            color: white;
+            text-align: center;
+            margin: 0;
+        }
+        .buttons {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+            gap: 40px;
+            width: 100%;
+            position: relative;
+            min-height: 60px;
+        }
+        .btn {
+            background-color: #FFB6C1;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            display: inline-block;
+            font-size: 16px;
+            margin: 0;
+            cursor: pointer;
+            border: none;
+            border-radius: 12px;
+            transition: background-color 0.3s ease, left 0.5s, top 0.5s;
+            /* Remove position: relative; to avoid conflicts with JS */
+        }
+        .btn:hover {
+            background-color: #FAF9F6;
+            color: #FFB6C1;
+        }
+        @media (max-width: 600px) {
+            .container {
+                gap: 20px;
+            }
+            .header_text {
+                font-size: 32px;
+            }
+            .text {
+                font-size: 18px;
+            }
+            .gif_container img {
+                max-width: 150px;
+            }
+            .buttons {
+                gap: 16px;
+                min-height: 48px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="header_text">৻ꪆBe my girl friend৻ꪆ</h1>
+        <div class="gif_container">
+            <img src="https://media.tenor.com/POMMVN6DmdEAAAAi/%EB%AA%A8%EC%B0%8C%EB%83%A5-%EC%95%84%EC%9E%89.gif" alt="Cute animated illustration">
+        </div>
+        <p class="text">Give me one chance please(˶˃ᆺ˂˶)</p>
+        <div class="buttons">
+            <button id="yesButton" class="btn">Yes</button>
+            <button id="noButton" class="btn">No</button>
+        </div>
+    </div>
+    <script>
+        // Move wallpaper and No button logic
+        const noBtn = document.getElementById("noButton");
+        const yesBtn = document.getElementById("yesButton");
+
+        // Let the No button move anywhere on the screen
+        noBtn.style.position = "fixed";
+        // Set initial position for No button (center right)
+        noBtn.style.left = `${window.innerWidth * 0.65}px`;
+        noBtn.style.top = `${window.innerHeight * 0.6}px`;
+
+        document.addEventListener("mousemove", (e) => {
+            const rect = noBtn.getBoundingClientRect();
+            const btnCenterX = rect.left + rect.width / 2;
+            const btnCenterY = rect.top + rect.height / 2;
+            const distance = Math.hypot(
+                e.clientX - btnCenterX,
+                e.clientY - btnCenterY
+            );
+
+            // Move wallpaper background as cursor nears NO button
+            if (distance < 200) {
+                const offsetX = ((btnCenterX - e.clientX) / window.innerWidth) * 100;
+                const offsetY = ((btnCenterY - e.clientY) / window.innerHeight) * 100;
+                document.body.style.backgroundPosition = `${50 + offsetX}% ${50 + offsetY}%`;
+            } else {
+                document.body.style.backgroundPosition = "50% 50%";
+            }
+
+            // If cursor is close, move the button smoothly anywhere on the screen
+            if (distance < 180) {
+                const btnWidth = noBtn.offsetWidth;
+                const btnHeight = noBtn.offsetHeight;
+                let x = Math.random() * (window.innerWidth - btnWidth);
+                let y = Math.random() * (window.innerHeight - btnHeight);
+
+                // Prevent button from going out of view
+                x = Math.max(0, Math.min(x, window.innerWidth - btnWidth));
+                y = Math.max(0, Math.min(y, window.innerHeight - btnHeight));
+
+                noBtn.style.left = `${x}px`;
+                noBtn.style.top = `${y}px`;
+            }
+        });
+
+        // Yes button navigates to yes.html
+        yesBtn.onclick = () => {
+            window.location.href = "yes.html";
+        };
+        // Optional: No button alert
+        noBtn.onclick = () => {
+            alert("Try clicking Yes! 😊");
+        };
+    </script>
+</body>
+</html>
