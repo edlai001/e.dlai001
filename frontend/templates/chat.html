@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page">
+  <h1>Messages</h1>
+  <p class="subtitle">Chat with partners you've matched with, or with your study groups.</p>
+  <div class="chat-layout">
+    <div class="chat-side">
+      <h4>Partners</h4>
+      <div id="partnerList"><p class="muted">Loading...</p></div>
+      <h4 style="margin-top:16px">Groups</h4>
+      <div id="groupList"><p class="muted">Loading...</p></div>
+    </div>
+    <div class="chat-main">
+      <div class="chat-head" id="chatHead">Select a conversation</div>
+      <div class="chat-msgs" id="chatMsgs"><div class="chat-empty">Pick a partner or group on the left.</div></div>
+      <div class="chat-input" id="chatInput" style="display:none">
+        <input type="text" id="msgBody" placeholder="Type a message..." maxlength="1000" />
+        <button class="btn-primary" onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+let current = null;   // {type: 'direct'|'group', id: number}
+let pollTimer = null;
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function loadSidebar() {
+  const p = await fetch('/api/partners').then(r => r.json());
+  document.getElementById('partnerList').innerHTML = p.partners.length === 0
+    ? '<p class="muted">No accepted partners yet. Send and accept a match request first.</p>'
+    : p.partners.map(x => `<div class="chat-item" id="p-${x.user_id}" data-name="${esc(x.name)}" onclick="openChat('direct', ${x.user_id})">${esc(x.name)}</div>`).join('');
+
+  const g = await fetch('/api/groups').then(r => r.json());
+  document.getElementById('groupList').innerHTML = g.groups.length === 0
+    ? '<p class="muted">No groups yet.</p>'
+    : g.groups.map(x => `<div class="chat-item" id="g-${x.id}" data-name="${esc(x.name)}" onclick="openChat('group', ${x.id})">👥 ${esc(x.name)}</div>`).join('');
+
+  const params = new URLSearchParams(location.search);
+  if (params.get('u')) openChat('direct', parseInt(params.get('u')));
+  else if (params.get('g')) openChat('group', parseInt(params.get('g')));
+}
+
+function endpoint() {
+  return current.type === 'direct' ? `/api/messages/direct/${current.id}` : `/api/groups/${current.id}/messages`;
+}
+
+async function openChat(type, id) {
+  current = {type, id};
+  document.querySelectorAll('.chat-item').forEach(e => e.classList.remove('active'));
+  const el = document.getElementById((type === 'direct' ? 'p-' : 'g-') + id);
+  if (el) el.classList.add('active');
+  document.getElementById('chatHead').textContent = el ? el.dataset.name : 'Conversation';
+  document.getElementById('chatInput').style.display = 'flex';
+  await refreshMessages(true);
+  clearInterval(pollTimer);
+  pollTimer = setInterval(() => refreshMessages(false), 4000);
+  document.getElementById('msgBody').focus();
+}
+
+async function refreshMessages(forceScroll) {
+  if (!current) return;
+  const res = await fetch(endpoint());
+  const box = document.getElementById('chatMsgs');
+  if (!res.ok) {
+    const d = await res.json();
+    box.innerHTML = `<div class="chat-empty">${esc(d.error)}</div>`;
+    return;
+  }
+  const data = await res.json();
+  const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+  box.innerHTML = data.messages.length === 0
+    ? '<div class="chat-empty">No messages yet — say hi 👋</div>'
+    : data.messages.map(m => `
+        <div class="bubble ${m.mine ? 'mine' : 'theirs'}">
+          ${current.type === 'group' && !m.mine ? `<span class="sender">${esc(m.sender)}</span>` : ''}
+          ${esc(m.body)}
+          <span class="meta">${esc(m.sent_at)}</span>
+        </div>`).join('');
+  if (forceScroll || nearBottom) box.scrollTop = box.scrollHeight;
+}
+
+async function sendMessage() {
+  const input = document.getElementById('msgBody');
+  const body = input.value.trim();
+  if (!body || !current) return;
+  const res = await fetch(endpoint(), {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({body})
+  });
+  if (res.ok) { input.value = ''; refreshMessages(true); }
+  else { const d = await res.json(); alert(d.error); }
+}
+
+document.getElementById('msgBody').addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+loadSidebar();
+</script>
+{% endblock %}

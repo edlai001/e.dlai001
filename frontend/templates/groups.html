@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .discover-card { border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:10px; background:var(--bg); }
+  .discover-card p { margin:6px 0; }
+  .discover-card .btn-primary { margin-top:8px; }
+  .discover-top { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+</style>
+<div class="page">
+  <h1>Study Groups</h1>
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <h3>Create a Group</h3>
+        <input type="text" id="groupName" placeholder="Group name" />
+        <textarea id="groupDesc" rows="2" placeholder="Description (optional)"></textarea>
+        <button class="btn-primary" onclick="createGroup()">Create</button>
+        <div id="groupMsg" class="success-msg" style="display:none"></div>
+      </div>
+      <div class="card">
+        <h3>My Groups</h3>
+        <div id="groupList"><p>Loading...</p></div>
+      </div>
+      <div class="card">
+        <h3>🔍 Discover Groups</h3>
+        <input type="text" id="discoverSearch" placeholder="Search by name, subject or description..." oninput="renderDiscover()" />
+        <div id="discoverList"><p class="muted">Loading...</p></div>
+      </div>
+    </div>
+    <div class="card" id="groupDetail" style="display:none">
+      <h3 id="groupDetailName"></h3>
+      <p id="groupDetailDesc" class="muted"></p>
+      <h4>Members</h4>
+      <div id="memberList"></div>
+      <div class="add-row">
+        <select id="inviteSelect"></select>
+        <button class="btn-primary" onclick="invitePartner()">Invite</button>
+      </div>
+      <div id="inviteMsg" class="muted" style="margin-top:6px"></div>
+      <a id="groupChatLink" class="btn-secondary" href="#">💬 Open group chat</a>
+      <h4>Sessions</h4>
+      <div id="sessionList"></div>
+      <div class="add-row" style="flex-wrap:wrap; gap:8px; margin-top:12px">
+        <input type="datetime-local" id="sessStart" />
+        <input type="datetime-local" id="sessEnd" />
+        <input type="text" id="sessLoc" placeholder="Location or link" />
+        <button class="btn-primary" onclick="addSession()">Add Session</button>
+      </div>
+      <button class="btn-outline" style="margin-top:12px" onclick="leaveGroup()">Leave Group</button>
+    </div>
+  </div>
+</div>
+<script>
+let activeGroupId = null;
+
+async function loadGroups() {
+  const data = await fetch('/api/groups').then(r => r.json());
+  const el = document.getElementById('groupList');
+  if (data.groups.length === 0) { el.innerHTML = '<p class="muted">No groups yet</p>'; return; }
+  el.innerHTML = data.groups.map(g => `
+    <div class="mini-card clickable" onclick="openGroup(${g.id})">
+      <span>${g.name}</span>
+    </div>`).join('');
+}
+
+async function createGroup() {
+  const name = document.getElementById('groupName').value.trim();
+  if (!name) return;
+  const res = await fetch('/api/groups', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name, description: document.getElementById('groupDesc').value})
+  });
+  const data = await res.json();
+  const msg = document.getElementById('groupMsg');
+  msg.textContent = res.ok ? 'Group created!' : data.error;
+  msg.style.display = 'block';
+  if (res.ok) { document.getElementById('groupName').value=''; document.getElementById('groupDesc').value=''; loadGroups(); }
+  setTimeout(() => msg.style.display='none', 2000);
+}
+
+async function openGroup(id) {
+  activeGroupId = id;
+  const data = await fetch(`/api/groups/${id}`).then(r => r.json());
+  document.getElementById('groupDetail').style.display = 'block';
+  document.getElementById('groupDetailName').textContent = data.name;
+  document.getElementById('groupDetailDesc').textContent = data.description || '';
+  document.getElementById('groupChatLink').href = '/chat?g=' + id;
+  loadInvitable(id);
+  document.getElementById('memberList').innerHTML = data.members.map(m =>
+    `<div class="mini-card"><span>${m.name}</span><span class="badge">${m.role}</span></div>`).join('');
+  document.getElementById('sessionList').innerHTML = data.sessions.length === 0
+    ? '<p class="muted">No sessions yet</p>'
+    : data.sessions.map(s => `<div class="mini-card"><span>${s.start.replace('T',' ').slice(0,16)}</span><span class="muted">${s.location||''}</span></div>`).join('');
+}
+
+let discoverData = [];
+
+async function loadDiscover() {
+  const res = await fetch('/api/groups/discover');
+  const data = await res.json();
+  discoverData = data.groups || [];
+  renderDiscover();
+}
+
+function renderDiscover() {
+  const q = document.getElementById('discoverSearch').value.trim().toLowerCase();
+  const el = document.getElementById('discoverList');
+  if (discoverData.length === 0) { el.innerHTML = '<p class="muted">No other groups to discover yet.</p>'; return; }
+  const list = discoverData.filter(g =>
+    !q || (g.name + ' ' + (g.description || '') + ' ' + g.subjects.join(' ')).toLowerCase().includes(q));
+  if (list.length === 0) { el.innerHTML = '<p class="muted">No groups match your search.</p>'; return; }
+  el.innerHTML = list.map(g => `
+    <div class="discover-card">
+      <div class="discover-top">
+        <strong>${esc(g.name)}</strong>
+        <span class="badge">${g.member_count} member${g.member_count === 1 ? '' : 's'}</span>
+      </div>
+      <p class="muted">${esc(g.description || 'No description')}</p>
+      <div>${g.subjects.length ? g.subjects.map(x => `<span class="tag">${esc(x)}</span>`).join('') : '<span class="muted">No subjects listed yet</span>'}</div>
+      <p class="muted">Created by ${esc(g.creator)}${g.next_session ? ' · Next session ' + esc(g.next_session) : ''}</p>
+      <button class="btn-primary" onclick="joinGroup(${g.id})">Join group</button>
+    </div>`).join('');
+}
+
+async function joinGroup(id) {
+  const res = await fetch(`/api/groups/${id}/join`, {method: 'POST'});
+  const data = await res.json();
+  if (!res.ok) { alert(data.error); return; }
+  await loadGroups();
+  await loadDiscover();
+  openGroup(id);
+}
+
+function esc(t) {
+  return String(t ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+async function loadInvitable(id) {
+  const sel = document.getElementById('inviteSelect');
+  document.getElementById('inviteMsg').textContent = '';
+  const res = await fetch(`/api/groups/${id}/invitable`);
+  const data = await res.json();
+  if (!res.ok || data.partners.length === 0) {
+    sel.innerHTML = '<option value="">No accepted partners to invite</option>';
+    return;
+  }
+  sel.innerHTML = data.partners.map(p => `<option value="${p.user_id}">${esc(p.name)}</option>`).join('');
+}
+
+async function invitePartner() {
+  const uid = parseInt(document.getElementById('inviteSelect').value);
+  const msg = document.getElementById('inviteMsg');
+  if (!uid) { msg.textContent = 'Nobody to invite yet — accept a match request first.'; return; }
+  const res = await fetch(`/api/groups/${activeGroupId}/invite`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({user_id: uid})
+  });
+  const data = await res.json();
+  msg.textContent = res.ok ? 'Added to the group!' : data.error;
+  if (res.ok) openGroup(activeGroupId);
+}
+
+async function addSession() {
+  const start = document.getElementById('sessStart').value.replace('T',' ');
+  const end = document.getElementById('sessEnd').value.replace('T',' ');
+  const loc = document.getElementById('sessLoc').value;
+  if (!start || !end) return;
+  await fetch(`/api/groups/${activeGroupId}/sessions`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({start_datetime: start, end_datetime: end, location_or_link: loc})
+  });
+  openGroup(activeGroupId);
+}
+
+async function leaveGroup() {
+  if (!confirm('Leave this group?')) return;
+  await fetch(`/api/groups/${activeGroupId}/leave`, {method:'POST'});
+  document.getElementById('groupDetail').style.display = 'none';
+  loadGroups();
+  loadDiscover();
+}
+
+loadGroups();
+loadDiscover();
+</script>
+{% endblock %}

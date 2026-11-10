@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page">
+  <h1>Dashboard</h1>
+  <div class="dashboard-grid">
+    <div class="card">
+      <h3>👋 Welcome back</h3>
+      <p id="welcomeName">Loading...</p>
+      <a href="/profile" class="btn-secondary">Edit Profile</a>
+    </div>
+    <div class="card">
+      <h3>🔔 Pending Requests</h3>
+      <div id="pendingRequests"><p>Loading...</p></div>
+    </div>
+    <div class="card">
+      <h3>⭐ Top Matches</h3>
+      <div id="topMatches"><p>Loading...</p></div>
+      <a href="/matches" class="btn-secondary">See All</a>
+    </div>
+    <div class="card">
+      <h3>👥 My Groups</h3>
+      <div id="myGroups"><p>Loading...</p></div>
+      <a href="/groups" class="btn-secondary">All Groups</a>
+    </div>
+  </div>
+</div>
+<script>
+async function loadDashboard() {
+  const profile = await fetch('/api/profile').then(r => r.json());
+  document.getElementById('welcomeName').textContent = profile.display_name || profile.email;
+
+  const req = await fetch('/api/matches/requests/incoming').then(r => r.json());
+  const reqEl = document.getElementById('pendingRequests');
+  if (req.requests.length === 0) reqEl.innerHTML = '<p class="muted">No pending requests</p>';
+  else reqEl.innerHTML = req.requests.map(r => `
+    <div class="mini-card">
+      <span>${r.from_name}</span>
+      <button class="btn-xs btn-green" onclick="respond(${r.id},'accepted')">Accept</button>
+      <button class="btn-xs btn-red" onclick="respond(${r.id},'declined')">Decline</button>
+    </div>`).join('');
+
+  const matches = await fetch('/api/matches').then(r => r.json());
+  const mEl = document.getElementById('topMatches');
+  if (matches.matches.length === 0) mEl.innerHTML = '<p class="muted">Add subjects to get matches</p>';
+  else mEl.innerHTML = matches.matches.slice(0,3).map(m => `
+    <div class="mini-card">
+      <span>${m.display_name}</span>
+      <span class="badge">${Math.round(m.score*100)}%</span>
+    </div>`).join('');
+
+  const groups = await fetch('/api/groups').then(r => r.json());
+  const gEl = document.getElementById('myGroups');
+  if (groups.groups.length === 0) gEl.innerHTML = '<p class="muted">No groups yet</p>';
+  else gEl.innerHTML = groups.groups.slice(0,3).map(g => `
+    <div class="mini-card"><span>${g.name}</span></div>`).join('');
+}
+
+async function respond(id, status) {
+  await fetch(`/api/matches/request/${id}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({status})
+  });
+  loadDashboard();
+}
+
+loadDashboard();
+</script>
+{% endblock %}

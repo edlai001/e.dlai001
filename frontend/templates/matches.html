@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page">
+  <h1>Find Study Partners</h1>
+  <p class="subtitle">Ranked by subject overlap and availability compatibility.</p>
+  <div id="matchList"><p>Loading...</p></div>
+</div>
+<script>
+async function loadMatches() {
+  const data = await fetch('/api/matches').then(r => r.json());
+  const el = document.getElementById('matchList');
+  if (data.matches.length === 0) {
+    el.innerHTML = '<div class="card"><p class="muted">No matches yet — add subjects and availability on your profile first.</p></div>';
+    return;
+  }
+  el.innerHTML = data.matches.map(m => `
+    <div class="card match-card">
+      <div class="match-header">
+        <div class="avatar">${(m.display_name||'?')[0].toUpperCase()}</div>
+        <div>
+          <h3>${m.display_name}</h3>
+          <span class="score-badge">${Math.round(m.score*100)}% match</span>
+        </div>
+      </div>
+      <div class="match-detail">
+        <div class="detail-box">
+          <label>📚 Shared Subjects</label>
+          <div>${m.shared_subjects.length ? m.shared_subjects.map(s=>`<span class="tag">${s}</span>`).join('') : '<span class="muted">None</span>'}</div>
+        </div>
+        <div class="detail-box">
+          <label>📊 Scores</label>
+          <div>
+            <div class="score-bar"><span>Subject</span><div class="bar"><div class="fill" style="width:${Math.round(m.subject_score*100)}%"></div></div><span>${Math.round(m.subject_score*100)}%</span></div>
+            <div class="score-bar"><span>Time</span><div class="bar"><div class="fill" style="width:${Math.round(m.availability_score*100)}%"></div></div><span>${Math.round(m.availability_score*100)}%</span></div>
+          </div>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="sendRequest(${m.user_id}, this)">Send Request</button>
+    </div>`).join('');
+}
+
+async function sendRequest(userId, btn) {
+  const res = await fetch('/api/matches/request', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({to_user_id: userId})
+  });
+  if (res.ok) { btn.textContent = '✓ Request Sent'; btn.disabled = true; btn.className = 'btn-disabled'; }
+  else { const d = await res.json(); btn.textContent = d.error; btn.disabled = true; }
+}
+
+loadMatches();
+</script>
+{% endblock %}
