@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from ..db import get_db
 from ..auth.utils import require_login, current_user_id
+from ..validation import bad_request, check_lengths, parse_datetime
 
 groups_bp = Blueprint('groups', __name__, url_prefix='/api/groups')
 
@@ -26,6 +27,9 @@ def create_group():
     description = data.get('description', '')
     if not name:
         return jsonify({'error': 'Group name required'}), 400
+    error = check_lengths({'group_name': name, 'description': description})
+    if error:
+        return error
     db = get_db()
     cur = db.cursor()
     uid = current_user_id()
@@ -148,18 +152,29 @@ def invite(group_id):
 @groups_bp.route('/<int:group_id>/sessions', methods=['POST'])
 @require_login
 def add_session(group_id):
+    from ..chat.routes import is_member
     data = request.get_json()
     start = data.get('start_datetime')
     end = data.get('end_datetime')
     location = data.get('location_or_link', '')
     if not start or not end:
         return jsonify({'error': 'start_datetime and end_datetime required'}), 400
+    start_dt, end_dt = parse_datetime(start), parse_datetime(end)
+    if not start_dt or not end_dt:
+        return bad_request('start_datetime and end_datetime must look like 2026-12-01 14:00')
+    if start_dt >= end_dt:
+        return bad_request('The session must end after it starts')
+    error = check_lengths({'location_or_link': location})
+    if error:
+        return error
     db = get_db()
     cur = db.cursor()
+    if not is_member(cur, group_id, current_user_id()):
+        return jsonify({'error': 'Only group members can schedule sessions'}), 403
     cur.execute('''
         INSERT INTO study_sessions (group_id, start_datetime, end_datetime, location_or_link)
-        VALUES (:1, TO_TIMESTAMP(:2,'YYYY-MM-DD HH24:MI'), TO_TIMESTAMP(:3,'YYYY-MM-DD HH24:MI'), :4)
-    ''', [group_id, start, end, location])
+        VALUES (:1, :2, :3, :4)
+    ''', [group_id, start_dt, end_dt, location])
     db.commit()
     return jsonify({'message': 'Session scheduled'}), 201
 
