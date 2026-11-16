@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from ..db import get_db
 from ..auth.utils import require_login, current_user_id
+from ..validation import check_lengths
 
 profile_bp = Blueprint('profile', __name__, url_prefix='/api/profile')
 
@@ -38,6 +39,9 @@ def get_profile():
 @require_login
 def update_profile():
     data = request.get_json()
+    error = check_lengths({f: data.get(f) for f in ('display_name', 'major', 'bio', 'language')})
+    if error:
+        return error
     db = get_db()
     cur = db.cursor()
     uid = current_user_id()
@@ -57,6 +61,9 @@ def add_subject():
     goal = data.get('goal', 'general')
     if not subject_name:
         return jsonify({'error': 'Subject name required'}), 400
+    error = check_lengths({'subject_name': subject_name, 'level': level, 'goal': goal})
+    if error:
+        return error
     db = get_db()
     cur = db.cursor()
     cur.execute('SELECT id FROM subjects WHERE LOWER(name) = LOWER(:1)', [subject_name])

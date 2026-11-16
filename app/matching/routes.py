@@ -18,9 +18,19 @@ def send_request():
     to_id = data.get('to_user_id')
     if not to_id:
         return jsonify({'error': 'to_user_id required'}), 400
+    try:
+        to_id = int(to_id)
+    except (TypeError, ValueError):
+        return jsonify({'error': 'to_user_id must be a number'}), 400
     db = get_db()
     cur = db.cursor()
     from_id = current_user_id()
+    if to_id == from_id:
+        return jsonify({'error': 'You cannot send a request to yourself'}), 400
+    # match_requests.to_user_id must point at an existing user (foreign key)
+    cur.execute('SELECT 1 FROM users WHERE id=:1', [to_id])
+    if not cur.fetchone():
+        return jsonify({'error': 'User not found'}), 404
     cur.execute('SELECT id FROM match_requests WHERE from_user_id=:1 AND to_user_id=:2', [from_id, to_id])
     if cur.fetchone():
         return jsonify({'error': 'Request already sent'}), 409
@@ -39,6 +49,9 @@ def respond_request(req_id):
     cur = db.cursor()
     cur.execute('UPDATE match_requests SET status=:1 WHERE id=:2 AND to_user_id=:3',
                 [status, req_id, current_user_id()])
+    if cur.rowcount == 0:
+        # No such request, or it was sent to someone else
+        return jsonify({'error': 'Request not found'}), 404
     db.commit()
     return jsonify({'message': f'Request {status}'})
 
