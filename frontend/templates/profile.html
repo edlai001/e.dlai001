@@ -1,146 +1,103 @@
 {% extends "base.html" %}
-{% block content %}
-<div class="page">
-  <h1>My Profile</h1>
-  <div class="two-col">
-    <div class="card">
-      <h3>Personal Info</h3>
-      <label>Display Name</label>
-      <input type="text" id="displayName" placeholder="Your name" />
-      <label>Major</label>
-      <input type="text" id="major" placeholder="e.g. Computer Science" />
-      <label>Bio</label>
-      <textarea id="bio" rows="3" placeholder="Tell others about you..."></textarea>
-      <label>Preferred Language</label>
-      <select id="language">
-        <option>English</option><option>Hungarian</option><option>Mongolian</option>
-        <option>German</option><option>French</option><option>Other</option>
-      </select>
-      <button class="btn-primary" onclick="saveProfile()">Save</button>
-      <div id="profileMsg" class="success-msg" style="display:none">Saved!</div>
-    </div>
+{% block title %}My profile · StudyBuddy{% endblock %}
 
-    <div>
-      <div class="card">
-        <h3>📚 My Subjects</h3>
-        <div id="subjectList"></div>
-        <div class="add-row">
-          <select id="subjectSelect"></select>
-          <select id="subjectLevel">
+{% block content %}
+<header class="page-header">
+  <div>
+    <h1 class="page-title">My profile</h1>
+    <p class="page-lead">What you study and when you're free decides who you get matched with.</p>
+  </div>
+</header>
+
+<div class="grid">
+  <section class="card" aria-labelledby="info-heading">
+    <h2 id="info-heading" class="card__title">Personal info</h2>
+    <form id="profile-form" class="form">
+      <div class="field">
+        <label class="field__label" for="display-name">Display name</label>
+        <input id="display-name" type="text" maxlength="100" autocomplete="name" placeholder="Your name">
+      </div>
+      <div class="field">
+        <label class="field__label" for="major">Major</label>
+        <input id="major" type="text" maxlength="100" placeholder="e.g. Computer Science">
+      </div>
+      <div class="field">
+        <label class="field__label" for="bio">Bio</label>
+        <textarea id="bio" rows="4" maxlength="1000" placeholder="Tell others about yourself"></textarea>
+      </div>
+      <div class="field">
+        <label class="field__label" for="language">Preferred language</label>
+        <select id="language">
+          <option>English</option><option>Hungarian</option><option>Mongolian</option>
+          <option>German</option><option>French</option><option>Other</option>
+        </select>
+      </div>
+      <div>
+        <button class="btn btn--primary" type="submit">Save profile</button>
+      </div>
+      <div id="profile-msg" role="status" hidden></div>
+    </form>
+  </section>
+
+  <div class="stack">
+    <section class="card" aria-labelledby="subjects-heading">
+      <h2 id="subjects-heading" class="card__title">My subjects</h2>
+      <ul id="subject-list" class="list"></ul>
+      <form id="subject-form" class="form-row">
+        <div class="field">
+          <label class="field__label" for="subject-select">Subject</label>
+          <select id="subject-select"></select>
+        </div>
+        <div class="field">
+          <label class="field__label" for="subject-level">Level</label>
+          <select id="subject-level">
             <option value="beginner">Beginner</option>
             <option value="intermediate">Intermediate</option>
             <option value="advanced">Advanced</option>
           </select>
-          <select id="subjectGoal">
-            <option value="exam">Exam Prep</option>
+        </div>
+        <div class="field">
+          <label class="field__label" for="subject-goal">Goal</label>
+          <select id="subject-goal">
+            <option value="exam">Exam prep</option>
             <option value="project">Project</option>
             <option value="general">General</option>
           </select>
-          <button class="btn-primary" onclick="addSubject()">Add</button>
         </div>
-      </div>
+        <button class="btn btn--primary" type="submit">Add subject</button>
+      </form>
+      <div id="subject-msg" role="status" hidden></div>
+    </section>
 
-      <div class="card">
-        <h3>📅 Weekly Availability</h3>
-        <div id="slotList"></div>
-        <div class="add-row">
-          <select id="slotDay">
+    <section class="card" aria-labelledby="availability-heading">
+      <h2 id="availability-heading" class="card__title">Weekly availability</h2>
+      <ul id="slot-list" class="list"></ul>
+      <form id="slot-form" class="form-row">
+        <div class="field">
+          <label class="field__label" for="slot-day">Day</label>
+          <select id="slot-day">
             <option value="0">Monday</option><option value="1">Tuesday</option>
             <option value="2">Wednesday</option><option value="3">Thursday</option>
             <option value="4">Friday</option><option value="5">Saturday</option>
             <option value="6">Sunday</option>
           </select>
-          <input type="time" id="slotStart" value="09:00" />
-          <span>to</span>
-          <input type="time" id="slotEnd" value="11:00" />
-          <button class="btn-primary" onclick="addSlot()">Add</button>
         </div>
-      </div>
-    </div>
+        <div class="field">
+          <label class="field__label" for="slot-start">From</label>
+          <input id="slot-start" type="time" value="09:00" required>
+        </div>
+        <div class="field">
+          <label class="field__label" for="slot-end">To</label>
+          <input id="slot-end" type="time" value="11:00" required>
+        </div>
+        <button class="btn btn--primary" type="submit">Add time</button>
+      </form>
+      <div id="slot-msg" role="status" hidden></div>
+    </section>
   </div>
 </div>
-<script>
-async function loadProfile() {
-  const data = await fetch('/api/profile').then(r => r.json());
-  document.getElementById('displayName').value = data.display_name || '';
-  document.getElementById('major').value = data.major || '';
-  document.getElementById('bio').value = data.bio || '';
-  document.getElementById('language').value = data.language || 'English';
+{% endblock %}
 
-  const subList = document.getElementById('subjectList');
-  subList.innerHTML = data.subjects.length === 0 ? '<p class="muted">No subjects yet</p>' :
-    data.subjects.map(s => `
-      <div class="tag-row">
-        <span class="tag">${s.name} <em>${s.level}</em></span>
-        <button class="btn-xs btn-red" onclick="removeSubject(${s.id})">✕</button>
-      </div>`).join('');
-
-  const slots = await fetch('/api/availability').then(r => r.json());
-  const slotEl = document.getElementById('slotList');
-  slotEl.innerHTML = slots.slots.length === 0 ? '<p class="muted">No slots yet</p>' :
-    slots.slots.map(s => `
-      <div class="tag-row">
-        <span class="tag">${s.day} ${s.start}–${s.end}</span>
-        <button class="btn-xs btn-red" onclick="removeSlot(${s.id})">✕</button>
-      </div>`).join('');
-}
-
-async function loadSubjectOptions() {
-  const data = await fetch('/api/profile/subjects').then(r => r.json());
-  const sel = document.getElementById('subjectSelect');
-  sel.innerHTML = data.subjects.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
-}
-
-async function saveProfile() {
-  await fetch('/api/profile', {
-    method:'PUT', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({
-      display_name: document.getElementById('displayName').value,
-      major: document.getElementById('major').value,
-      bio: document.getElementById('bio').value,
-      language: document.getElementById('language').value
-    })
-  });
-  const msg = document.getElementById('profileMsg');
-  msg.style.display = 'block';
-  setTimeout(() => msg.style.display = 'none', 2000);
-}
-
-async function addSubject() {
-  await fetch('/api/profile/subjects', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({
-      subject_name: document.getElementById('subjectSelect').value,
-      level: document.getElementById('subjectLevel').value,
-      goal: document.getElementById('subjectGoal').value
-    })
-  });
-  loadProfile();
-}
-
-async function removeSubject(id) {
-  await fetch(`/api/profile/subjects/${id}`, {method:'DELETE'});
-  loadProfile();
-}
-
-async function addSlot() {
-  await fetch('/api/availability', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({
-      day_of_week: parseInt(document.getElementById('slotDay').value),
-      start_time: document.getElementById('slotStart').value,
-      end_time: document.getElementById('slotEnd').value
-    })
-  });
-  loadProfile();
-}
-
-async function removeSlot(id) {
-  await fetch(`/api/availability/${id}`, {method:'DELETE'});
-  loadProfile();
-}
-
-loadProfile();
-loadSubjectOptions();
-</script>
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/pages/profile.js') }}" defer></script>
 {% endblock %}

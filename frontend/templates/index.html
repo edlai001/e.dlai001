@@ -1,68 +1,57 @@
 {% extends "base.html" %}
+{% block title %}StudyBuddy · Find study partners{% endblock %}
+
 {% block content %}
-<div class="auth-container">
-  <div class="auth-card" id="loginCard">
-    <h2>Welcome to StudyBuddy</h2>
-    <p class="subtitle">Find study partners who match your subjects and schedule.</p>
-    <div id="authError" class="error-msg" style="display:none"></div>
-    <div class="tabs">
-      <button class="tab active" onclick="showTab('login')">Login</button>
-      <button class="tab" onclick="showTab('register')">Register</button>
+<div class="auth">
+  <section>
+    <h1 class="auth__title">Find your study partners</h1>
+    <p class="page-lead">StudyBuddy matches you with students who share your subjects and your free time.</p>
+    <ul class="feature-list">
+      <li>Matches based on subjects and weekly availability</li>
+      <li>Study groups with scheduled sessions</li>
+      <li>Chat with partners and groups</li>
+    </ul>
+  </section>
+
+  <section class="card auth__card" aria-labelledby="auth-heading">
+    <h2 id="auth-heading" class="card__title">Welcome to StudyBuddy</h2>
+
+    <div class="segmented" role="group" aria-label="Log in or register">
+      <button class="segmented__option" type="button" aria-pressed="true" data-auth-mode="login">Log in</button>
+      <button class="segmented__option" type="button" aria-pressed="false" data-auth-mode="register">Register</button>
     </div>
 
-    <div id="loginForm">
-      <input type="email" id="loginEmail" placeholder="Email" />
-      <input type="password" id="loginPassword" placeholder="Password" />
-      <button class="btn-primary" onclick="login()">Login</button>
-    </div>
+    <div id="auth-error" class="alert alert--error" role="alert" hidden></div>
 
-    <div id="registerForm" style="display:none">
-      <input type="email" id="regEmail" placeholder="Email" />
-      <input type="password" id="regPassword" placeholder="Password (min 6 chars)" />
-      <button class="btn-primary" onclick="register()">Create Account</button>
-    </div>
-  </div>
+    <form id="login-form" class="form">
+      <div class="field">
+        <label class="field__label" for="login-email">Email</label>
+        <input id="login-email" type="email" autocomplete="email" required>
+      </div>
+      <div class="field">
+        <label class="field__label" for="login-password">Password</label>
+        <input id="login-password" type="password" autocomplete="current-password" required>
+      </div>
+      <button class="btn btn--primary btn--block" type="submit">Log in</button>
+    </form>
+
+    <form id="register-form" class="form" hidden>
+      <div class="field">
+        <label class="field__label" for="register-email">Email</label>
+        <input id="register-email" type="email" autocomplete="email" required>
+      </div>
+      <div class="field">
+        <label class="field__label" for="register-password">Password</label>
+        <input id="register-password" type="password" autocomplete="new-password" minlength="6" required
+               aria-describedby="register-password-hint">
+        <span id="register-password-hint" class="field__hint">At least 6 characters</span>
+      </div>
+      <button class="btn btn--primary btn--block" type="submit">Create account</button>
+    </form>
+  </section>
 </div>
+{% endblock %}
 
-<script>
-function showTab(tab) {
-  document.getElementById('loginForm').style.display = tab === 'login' ? 'flex' : 'none';
-  document.getElementById('registerForm').style.display = tab === 'register' ? 'flex' : 'none';
-  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (i===0 && tab==='login')||(i===1 && tab==='register')));
-}
-
-async function login() {
-  const email = document.getElementById('loginEmail').value;
-  const password = document.getElementById('loginPassword').value;
-  const res = await fetch('/api/auth/login', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({email, password})
-  });
-  const data = await res.json();
-  if (res.ok) { window.location.href = '/dashboard'; }
-  else { showError(data.error); }
-}
-
-async function register() {
-  const email = document.getElementById('regEmail').value;
-  const password = document.getElementById('regPassword').value;
-  const res = await fetch('/api/auth/register', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({email, password})
-  });
-  const data = await res.json();
-  if (res.ok) {
-    await fetch('/api/auth/login', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, password})});
-    window.location.href = '/dashboard';
-  } else { showError(data.error); }
-}
-
-function showError(msg) {
-  const el = document.getElementById('authError');
-  el.textContent = msg;
-  el.style.display = 'block';
-}
-</script>
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/pages/auth.js') }}" defer></script>
 {% endblock %}

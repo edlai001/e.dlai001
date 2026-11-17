@@ -1,60 +1,45 @@
 {% extends "base.html" %}
+{% block title %}Admin · StudyBuddy{% endblock %}
+
 {% block content %}
-<div class="page">
-  <h1>Admin Panel</h1>
-  <div class="dashboard-grid">
-    <div class="card">
-      <h3>📊 Statistics</h3>
-      <div id="stats"><p>Loading...</p></div>
-    </div>
-    <div class="card">
-      <h3>📚 Manage Subjects</h3>
-      <div id="subjectAdmin"></div>
-      <div class="add-row">
-        <input type="text" id="newSubject" placeholder="New subject name" />
-        <button class="btn-primary" onclick="addSubject()">Add</button>
-      </div>
-    </div>
-    <div class="card" style="grid-column: span 2">
-      <h3>👥 All Users</h3>
-      <div id="userList"><p>Loading...</p></div>
-    </div>
+<header class="page-header">
+  <div>
+    <h1 class="page-title">Admin panel</h1>
+    <p class="page-lead">Site statistics, subjects and users.</p>
   </div>
-</div>
-<script>
-async function loadAdmin() {
-  const stats = await fetch('/api/admin/stats').then(r => r.json());
-  document.getElementById('stats').innerHTML = `
-    <p>👤 Users: <strong>${stats.total_users}</strong></p>
-    <p>👥 Groups: <strong>${stats.total_groups}</strong></p>
-    <p>🤝 Accepted Matches: <strong>${stats.accepted_matches}</strong></p>`;
+</header>
 
-  const subs = await fetch('/api/admin/subjects').then(r => r.json());
-  document.getElementById('subjectAdmin').innerHTML = subs.subjects.map(s =>
-    `<div class="tag-row"><span class="tag">${s.name}</span>
-     <button class="btn-xs btn-red" onclick="deleteSubject(${s.id})">✕</button></div>`).join('');
+<div class="grid">
+  <section class="card" aria-labelledby="stats-heading">
+    <h2 id="stats-heading" class="card__title">Statistics</h2>
+    <dl id="stats" class="stat-list"></dl>
+  </section>
 
-  const users = await fetch('/api/admin/users').then(r => r.json());
-  document.getElementById('userList').innerHTML = `
+  <section class="card" aria-labelledby="subjects-heading">
+    <h2 id="subjects-heading" class="card__title">Subjects</h2>
+    <ul id="subject-admin" class="list"></ul>
+    <form id="subject-form" class="form-row">
+      <div class="field">
+        <label class="field__label" for="new-subject">New subject</label>
+        <input id="new-subject" type="text" maxlength="100" required>
+      </div>
+      <button class="btn btn--primary" type="submit">Add subject</button>
+    </form>
+    <div id="subject-msg" role="status" hidden></div>
+  </section>
+
+  <section class="card span-full" aria-labelledby="users-heading">
+    <h2 id="users-heading" class="card__title">All users</h2>
     <table class="data-table">
-      <thead><tr><th>ID</th><th>Email</th><th>Name</th><th>Role</th></tr></thead>
-      <tbody>${users.users.map(u => `<tr><td>${u.id}</td><td>${u.email}</td><td>${u.display_name}</td><td>${u.role}</td></tr>`).join('')}</tbody>
-    </table>`;
-}
+      <thead>
+        <tr><th scope="col">ID</th><th scope="col">Email</th><th scope="col">Name</th><th scope="col">Role</th></tr>
+      </thead>
+      <tbody id="user-rows"></tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}
 
-async function addSubject() {
-  const name = document.getElementById('newSubject').value.trim();
-  if (!name) return;
-  await fetch('/api/admin/subjects', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name})});
-  document.getElementById('newSubject').value = '';
-  loadAdmin();
-}
-
-async function deleteSubject(id) {
-  await fetch(`/api/admin/subjects/${id}`, {method:'DELETE'});
-  loadAdmin();
-}
-
-loadAdmin();
-</script>
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/pages/admin.js') }}" defer></script>
 {% endblock %}
